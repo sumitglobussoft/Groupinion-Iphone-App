@@ -1,0 +1,64 @@
+//
+//  MyQuestionViewController.m
+//  Groupinion
+//
+//  Created by Sumit Ghosh on 16/07/13.
+//  Copyright (c) 2013 Sumit Ghosh. All rights reserved.
+//
+
+#import "MyQuestionViewController.h"
+
+@interface MyQuestionViewController ()
+
+@end
+
+@implementation MyQuestionViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    // Do any additional setup after loading the view from its nib.
+    
+   // NSLog(@"class name==%@",self.class);
+    
+    UIImageView *bannerImage=[[UIImageView alloc]initWithFrame:CGRectMake(0, 0, 320, 50)];
+    bannerImage.image=[UIImage imageNamed:@"headFeed1Img.png"];
+    [self.view addSubview:bannerImage];
+    
+    //===================================================================
+    //Add Setting Button To View
+    UIButton *settingBtn=[UIButton buttonWithType:UIButtonTypeRoundedRect];
+    settingBtn.frame=CGRectMake(260, 8, 50, 35);
+   // settingBtn.layer.borderWidth=1.0f;
+   // settingBtn.layer.borderColor=[UIColor lightGrayColor].CGColor;
+//    settingBtn.clipsToBounds=YES;
+//    settingBtn.layer.cornerRadius=10.0f;
+    [settingBtn setBackgroundImage:[UIImage imageNamed:@"setting_btn.png"] forState:UIControlStateNormal];
+    [settingBtn addTarget:self action:@selector(settingButtonClicked) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:settingBtn];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+-(void)settingButtonClicked{
+    NSLog(@"Setting Button Clicked");
+    
+    SettingViewController *setting=[[SettingViewController alloc]initWithNibName:@"SettingViewController" bundle:nil];
+    
+    [self.navigationController pushViewController:setting animated:YES];
+}
+
+@end

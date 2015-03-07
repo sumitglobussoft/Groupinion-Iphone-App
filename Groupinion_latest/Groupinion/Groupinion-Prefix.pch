@@ -1,0 +1,16 @@
+//
+// Prefix header for all source files of the 'Groupinion' target in the 'Groupinion' project
+//
+
+#import <Availability.h>
+
+#ifndef __IPHONE_4_0
+#warning "This project uses features only available in iOS SDK 4.0 and later."
+#endif
+
+#ifdef __OBJC__
+    #import <UIKit/UIKit.h>
+    #import <Foundation/Foundation.h>
+#endif
+#define KP_APP_KEY    @"f4901d941516ff2cfa5fa26e90b4a2c9"
+#define KP_APP_SECRET @"de5c05047fd38da10f50d615d9fa2db0"

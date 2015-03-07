@@ -1,0 +1,25 @@
+//
+//  WebImageSearchViewController.h
+//  Groupinion
+//
+//  Created by Sumit Ghosh on 29/10/13.
+//  Copyright (c) 2013 Sumit Ghosh. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import <QuartzCore/QuartzCore.h>
+
+@interface WebImageSearchViewController : UIViewController <UITextFieldDelegate>
+{
+    NSUserDefaults *userDefaults;
+    CGFloat x, y;
+    int totalImages, pages;
+    NSString *lastSearchKey;
+}
+@property (strong, nonatomic) UIButton *moreButon;
+@property (strong, nonatomic) IBOutlet UIBarButtonItem *searchButton;
+@property (nonatomic, strong) UIScrollView *scrollView;
+@property (nonatomic, strong) NSMutableArray *imageListArray;
+@property (nonatomic, strong) IBOutlet UITextField *searchBoxTextfield;
+-(IBAction)searchButtonClicked:(id)sender;
+@end

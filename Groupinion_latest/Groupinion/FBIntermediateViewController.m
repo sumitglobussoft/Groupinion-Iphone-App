@@ -1,0 +1,327 @@
+//
+//  FBIntermediateViewController.m
+//  Groupinion
+//
+//  Created by Sumit Ghosh on 27/08/13.
+//  Copyright (c) 2013 Sumit Ghosh. All rights reserved.
+//
+
+#import "FBIntermediateViewController.h"
+#import "AppDelegate.h"
+#import "SendHttpRequest.h"
+#import "JSON.h"
+#import "MBProgressHUD.h"
+#import "MySingletonClass.h"
+
+#define PushNotificationDeviceToken @"GroupinionPushNotificationDeviceToken"
+#define CheckFirstRun @"CheckGroupinionFirstRun"
+
+@interface FBIntermediateViewController ()
+
+@end
+
+@implementation FBIntermediateViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    // Do any additional setup after loading the view from its nib.
+    //Prepare UI
+    UIImageView *bgImage = [[UIImageView alloc]initWithFrame:self.view.bounds];
+    [self.view addSubview:bgImage];
+    bgImage.image = [UIImage imageNamed:@"fb_intermedate.png"];
+    
+    UIImageView *logoImage = [[UIImageView alloc]initWithFrame:CGRectMake(95, 185, 60, 60)];
+    [self.view addSubview:logoImage];
+    logoImage.image = [UIImage imageNamed:@"appLogo.jpg"];
+    
+    UIImageView *profilePic = [[UIImageView alloc] initWithFrame:CGRectMake(165, 185, 60, 60)];
+    [self.view addSubview:profilePic];
+    
+    NSString *fbID = [self.fbDict objectForKey:@"uid"];
+    
+    NSURL *url=[NSURL URLWithString:[NSString stringWithFormat:@"http://graph.facebook.com/%@/picture?type=small",fbID]];
+    profilePic.image =[UIImage imageWithData:[NSData dataWithContentsOfURL:url]];
+    
+    UIImageView *textImage=[[UIImageView alloc]initWithFrame:CGRectMake(30, 270, 260, 30)];
+    [self.view addSubview:textImage];
+    textImage.image = [UIImage imageNamed:@"content.png"];
+    
+    
+    self.emailField = [[UITextField alloc]initWithFrame:CGRectMake(30, 320, 260, 30)];
+    self.emailField.borderStyle=UITextBorderStyleBezel;
+    self.emailField.placeholder=@"Enter e-mail address here";
+    self.emailField.font=[UIFont systemFontOfSize:13];
+    [self.view addSubview:self.emailField];
+    self.emailField.delegate=self;
+    
+    
+    UIButton *cancelButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    cancelButton.frame = CGRectMake(30, 370, 120, 40);
+    [cancelButton setBackgroundImage:[UIImage imageNamed:@"cancel.png"] forState:UIControlStateNormal];
+    [self.view addSubview:cancelButton];
+    [cancelButton addTarget:self action:@selector(cancelButtonClicked) forControlEvents:UIControlEventTouchUpInside];
+    
+    
+    UIButton *okButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    okButton.frame = CGRectMake(170, 370, 120, 40);
+    [okButton setBackgroundImage:[UIImage imageNamed:@"ok.png"] forState:UIControlStateNormal];
+    [self.view addSubview:okButton];
+    [okButton addTarget:self action:@selector(okButtonClicked) forControlEvents:UIControlEventTouchUpInside];
+    
+    
+    
+    self.keyboardToolbar = [[UIToolbar alloc]init];
+    self.keyboardToolbar.frame=CGRectMake(0, self.view.frame.size.height, 320, 40) ;
+    [self.view addSubview:self.keyboardToolbar];
+    self.keyboardToolbar.backgroundColor=[UIColor blueColor];
+    
+    self.keyboardTextFld=[[UITextField alloc]initWithFrame:CGRectMake(5, 5, 310, 30)];
+    self.keyboardTextFld.delegate=self;
+    self.keyboardTextFld.backgroundColor=[UIColor whiteColor];
+    self.keyboardTextFld.borderStyle=UITextBorderStyleRoundedRect;
+    [self.keyboardToolbar addSubview:self.keyboardTextFld];
+    
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    
+    // [Maintxt becomeFirstResponder];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
+}
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardWillShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardWillHideNotification object:nil];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+-(void)cancelButtonClicked{
+    AppDelegate *appDelegate = (AppDelegate *)[UIApplication sharedApplication].delegate;
+    [appDelegate logoutFlow];
+}
+-(void)okButtonClicked{
+    
+    NSString *cemail = self.emailField.text;
+    if ([cemail isEqualToString:@""] || cemail==nil || (NSNull *)cemail==[NSNull null]) {
+        
+        [[[UIAlertView alloc] initWithTitle:@"" message:@"Please enter your email" delegate:self cancelButtonTitle:@"Ok" otherButtonTitles:nil, nil] show];
+    }//End if block emailTextfield check
+    else{
+        //Email Validation
+        BOOL checkEmail = [self checkEmailValidation:cemail];
+        
+        if (checkEmail==YES) {
+            NSLog(@"Proceed");
+            
+            NSString *fbid = [self.fbDict objectForKey:@"uid"];
+            NSString *fname= [self.fbDict objectForKey:@"first_name"];
+            NSString *gender=[self.fbDict objectForKey:@"sex"];
+            
+            NSString *email = @"";
+            
+            
+            NSString *accessToken=[NSString stringWithFormat:@"%@",[self.fbDict objectForKey:@"AccessToken"]];
+            
+            NSString *urlString = [NSString stringWithFormat:@"http://beta.groupinion.com/android/latest_fbdetails_new/index.php?fname=%@&email=%@&cemail=%@&gender=%@&fid=%@&access_token=%@",fname,email,cemail,gender,fbid,accessToken];
+            urlString = [urlString stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+            
+            NSString *response = [SendHttpRequest sendRequest:urlString];
+            
+            if ([response isEqualToString:@"error"]) {
+                
+                [[[UIAlertView alloc]initWithTitle:@"" message:@"Please try again" delegate:self cancelButtonTitle:@"Ok" otherButtonTitles:nil, nil]show] ;
+            }//End else block response Error check
+            else{
+                
+                if ([response rangeOfString:@"\"Status\":\"0\""].location != NSNotFound) {
+                    
+                    NSDictionary *dict = [response JSONValue];
+                    [[[UIAlertView alloc]initWithTitle:@"" message:[NSString stringWithFormat:@"%@",[dict objectForKey:@"Message"]] delegate:self cancelButtonTitle:@"Ok" otherButtonTitles:nil, nil]show] ;
+                    
+                }//End if Block resoponse Status Check
+                else{
+                    
+                    NSDictionary *d = [response JSONValue];
+                    
+                    
+                    NSString *userID=[d objectForKey:@"ID"];
+                    
+                    [MySingletonClass sharedSingleton].groupinionUserID=userID;
+                    NSLog(@"dict app delegate===%@",d);
+                    
+                    
+                    NSString *picSetStatus=[d objectForKey:@"Default_image_status"];
+                    UIImage *profilePic=nil;
+                    if ([picSetStatus isEqualToString:@"1"]) {
+                        
+                        NSString *profileImageString=[d objectForKey:@"avatarImage"];
+                        if ([profileImageString rangeOfString:@"jpg"].location == NSNotFound) {
+                            profileImageString=[NSString stringWithFormat:@"%@.jpg",profileImageString];
+                        }
+                        [MySingletonClass sharedSingleton].avtarImage=profileImageString;
+                        
+                        
+                        profilePic = [UIImage imageWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[NSString stringWithFormat:@"http://beta.groupinion.com/app3/modules/boonex/photos/data/avatar_75_75/%@",profileImageString]]]];
+                        
+                    }//End if block picSetStatus
+                    else{
+                        NSURL *url=[NSURL URLWithString:[NSString stringWithFormat:@"http://graph.facebook.com/%@/picture?type=small",fbid]];
+                        
+                        profilePic = [UIImage imageWithData:[NSData dataWithContentsOfURL:url]];
+                    }//End else block picSetStatus
+                    
+                    [MySingletonClass sharedSingleton].avtarImage=@"0_avatar_75_75.jpg";
+                    [MySingletonClass sharedSingleton].profileImage=profilePic;
+                    
+                    //[self.viewController gotoNextView];
+                    [MySingletonClass sharedSingleton].reported=YES;
+                    [MySingletonClass sharedSingleton].refreshMyAnswer=YES;
+                    [MySingletonClass sharedSingleton].refreshMyQuestion=YES;
+                    [MySingletonClass sharedSingleton].refreshMyprofile=YES;
+                    
+                    [MySingletonClass sharedSingleton].totalNotification = [NSString stringWithFormat:@"%@",[self.fbDict objectForKey:@"Total Notifications"]];
+                    [MySingletonClass sharedSingleton].totalPointsSports=@"0";
+                    [MySingletonClass sharedSingleton].totalPointsShoppindAndFashion=@"0";
+                    [MySingletonClass sharedSingleton].totalPointsNewsAndPolitics=@"0";
+                    [MySingletonClass sharedSingleton].totalPointsFoodAndLifeS=@"0";
+                    [MySingletonClass sharedSingleton].totalPointsEntertainment=@"0";
+                    
+                    
+                    NSUserDefaults *userDefault = [NSUserDefaults standardUserDefaults];
+                    
+                    NSString *firstRun = [userDefault objectForKey:CheckFirstRun];
+                    
+                    if (!firstRun) {
+                        // NSData *tokenData = [userDefault objectForKey:PushNotificationDeviceToken];
+                        NSLog(@"Call web service to save device token");
+                        
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            // send your notification here instead of in updateFunction
+                            //[[NSNotificationCenter defaultCenter] post...];
+                            //[self saveDeviceTokenToDB:[resultDict objectForKey:@"ID"] deviceToken:tokenData];
+                        });
+                    }
+                    else{
+                        NSLog(@"Don't do anything");
+                    }
+
+                    
+                    
+                    
+                    GroupViewController *groupVC=[[GroupViewController alloc]initWithNibName:@"GroupViewController" bundle:nil];
+                    groupVC.modalTransitionStyle=UIModalTransitionStyleCrossDissolve;
+                    //[self presentModalViewController:groupVC animated:YES ];
+                    [self presentViewController:groupVC animated:YES completion:nil];
+
+                    
+//                    AppDelegate *appDelegate = [UIApplication sharedApplication].delegate;
+//                    [appDelegate makeRootViewController];
+                }//End Else Block resoponse Status Check
+                
+            }//End Else block response Error check
+            
+            
+            
+        }//End if block email check
+        else{
+            [[[UIAlertView alloc] initWithTitle:@"" message:@"Invalid custom-email format" delegate:self cancelButtonTitle:@"Ok" otherButtonTitles:nil, nil] show];
+        }//End else block email check
+        
+        
+    }//End else block EmailTextField check
+    
+}
+
+
+#pragma mark - 
+- (BOOL) checkEmailValidation:(NSString *)email{
+    
+    BOOL stricterFilter = YES;
+    BOOL correct;
+    
+    NSString *stricterFilterString = @"[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,4}";
+    NSString *laxString = @".+@.+\\.[A-Za-z]{2}[A-Za-z]*";
+    NSString *emailRegex = stricterFilter ? stricterFilterString : laxString;
+    NSPredicate *emailTest = [NSPredicate predicateWithFormat:@"SELF MATCHES %@", emailRegex];
+    
+    if ([emailTest evaluateWithObject:email] == YES){
+        
+        correct=YES;
+    }
+    else{
+        
+        correct=NO;
+        
+    }
+    return correct;
+}
+
+#pragma mark -
+#pragma mark TextField Delegate
+
+- (void)keyboardWillShow:(NSNotification *)notification{
+    [self.keyboardTextFld becomeFirstResponder];
+    [UIView beginAnimations:nil context:NULL];
+    [UIView setAnimationDuration:0.3];
+    
+    CGRect frame = self.keyboardToolbar.frame;
+    frame.origin.y = self.view.frame.size.height - 255.0;
+    self.keyboardToolbar.frame = frame;
+    [self.view  addSubview:self.keyboardToolbar];
+    [UIView commitAnimations];
+}
+
+- (void)keyboardWillHide:(NSNotification *)notification{
+    [UIView beginAnimations:nil context:NULL];
+	[UIView setAnimationDuration:0.3];
+	self.keyboardTextFld.text=@"";
+    
+	CGRect frame = self.keyboardToolbar.frame;
+	frame.origin.y = self.view.frame.size.height;
+	self.keyboardToolbar.frame = frame;
+    [self.keyboardTextFld resignFirstResponder];
+    [UIView commitAnimations];
+}
+
+
+
+-(BOOL)textFieldShouldReturn:(UITextField *)textField{
+    self.emailField.text=self.keyboardTextFld.text;
+    [textField resignFirstResponder];
+    return YES;
+}
+
+- (BOOL)shouldAutorotate{
+    return NO;
+}
+
+- (NSUInteger)supportedInterfaceOrientations{
+    return UIInterfaceOrientationMaskPortrait;
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    // Return YES for supported orientations
+    return UIInterfaceOrientationIsPortrait(interfaceOrientation);
+    
+    
+}
+@end

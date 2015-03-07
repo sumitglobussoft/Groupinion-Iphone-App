@@ -1,0 +1,259 @@
+//
+//  AccountViewController.m
+//  Groupinion
+//
+//  Created by Sumit Ghosh on 14/08/13.
+//  Copyright (c) 2013 Sumit Ghosh. All rights reserved.
+//
+
+#import "AccountViewController.h"
+#import "JSON.h"
+
+@interface AccountViewController ()
+
+@end
+
+@implementation AccountViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    // Do any additional setup after loading the view from its nib.
+    
+    //Main banner...
+    self.banerImage=[[UIImageView alloc]initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 50)];
+    self.banerImage.image=[UIImage imageNamed:@"group.png"];
+    [self.view addSubview:self.banerImage];
+    
+    //Back button..
+    UIButton *backButton=[UIButton buttonWithType:UIButtonTypeCustom];
+    backButton.frame=CGRectMake(10, 8, 60, 35);
+    [backButton setBackgroundImage:[UIImage imageNamed:@"Back_btn.png"] forState:UIControlStateNormal];
+    [backButton addTarget:self action:@selector(backToSettings) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:backButton];
+    
+    //second banner-Change password..
+    UIImageView *changePasswordBanner=[[UIImageView alloc]initWithFrame:CGRectMake(0, 50, self.view.bounds.size.width, 35)];
+    changePasswordBanner.image=[UIImage imageNamed:@"chngpwd_banner@2x.png"];
+    [self.view addSubview:changePasswordBanner];
+	
+    //EmailID.......
+    self.emailIDText=[[UITextField alloc]initWithFrame:CGRectMake(10, 100, self.view.bounds.size.width-20, 35)];
+    self.emailIDText.placeholder=@"Your email-id";
+    self.emailIDText.borderStyle=UITextBorderStyleBezel;
+    self.emailIDText.textAlignment=NSTextAlignmentCenter;
+    self.emailIDText.delegate=self;
+    [self.view addSubview:self.emailIDText];
+    
+    //Old password..
+    self.oldPassword=[[UITextField alloc]initWithFrame:CGRectMake(10, 150, self.view.bounds.size.width-20, 35)];
+    self.oldPassword.placeholder=@"Old Password";
+    self.oldPassword.borderStyle=UITextBorderStyleBezel;
+    self.oldPassword.textAlignment=NSTextAlignmentCenter;
+    self.oldPassword.secureTextEntry=YES;
+    self.oldPassword.delegate=self;
+    self.oldPassword.enabled=YES;
+    
+    [self.view addSubview:self.oldPassword];
+    
+    //New password..
+    self.nwPasword=[[UITextField alloc]initWithFrame:CGRectMake(10, 200, self.view.bounds.size.width-20, 35)];
+    self.nwPasword.placeholder=@"New Password";
+    self.nwPasword.borderStyle=UITextBorderStyleBezel;
+    self.nwPasword.textAlignment=NSTextAlignmentCenter;
+    self.nwPasword.secureTextEntry=YES;
+    self.nwPasword.delegate=self;
+    [self.view addSubview:self.nwPasword];
+    
+    //Change Password Button..
+    self.changePasswordButton=[UIButton buttonWithType:UIButtonTypeCustom];
+    self.changePasswordButton.frame=CGRectMake(10, 250, self.view.bounds.size.width-20, 35);
+    [self.changePasswordButton setBackgroundImage:[UIImage imageNamed:@"Change.png"] forState:UIControlStateNormal];
+    //self.changePasswordButton.layer.cornerRadius=5.0f;
+    [self.changePasswordButton addTarget:self action:@selector(changePasswordClicked) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:self.changePasswordButton];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+
+//Action for Back to Settings view...
+-(void)backToSettings
+{
+    [self.navigationController popViewControllerAnimated:YES];
+    NSLog(@"Back button pressed");
+}
+
+-(void)changePasswordClicked
+{
+    NSLog(@"Change password button pressed");
+    //Perform validation
+    if ([self.emailIDText.text isEqualToString:@""] || [self.oldPassword.text isEqualToString:@""]  ||self.nwPasword.text==NULL || self.emailIDText.text==NULL || self.oldPassword.text==nil || self.nwPasword.text==nil) {
+        
+        [[[UIAlertView alloc] initWithTitle:nil message:@"Please Enter All Details" delegate:self cancelButtonTitle:@"Ok" otherButtonTitles:nil, nil] show];
+    }
+    else{
+        NSString *email=self.emailIDText.text;
+        NSLog(@"Entered Email=%@",email);
+        //Email validation
+        BOOL corrct=[self checkEmailValidation:email];
+        
+        if(corrct==YES){
+            //[activityIndicator startAnimating];
+            
+            //http://beta.groupinion.com/android/changepassword/index.php?email=&oldpassword=&newpassword=
+            //set new password
+            NSString *changePasswordUrl=[NSString stringWithFormat:@"http://beta.groupinion.com/android/changepassword/index.php?email=%@&oldpassword=%@&newpassword=%@",self.emailIDText.text,self.oldPassword.text,self.nwPasword.text];
+            
+            changePasswordUrl=[changePasswordUrl stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+            NSMutableDictionary *dict = [[NSMutableDictionary alloc]init];
+            
+            
+            NSString *jsonstring1  = [dict JSONRepresentation];
+            
+            NSLog(@"ssss  ===%@",jsonstring1);
+            NSString *post1 = [NSString stringWithFormat:@"&json=[%@]",jsonstring1];
+            //[dict release];
+            NSLog(@"56566=====%@",post1);
+            
+            [self sendHTTPPost:jsonstring1 :changePasswordUrl] ;
+        }
+        else{
+            UIAlertView *alert=[[UIAlertView alloc]initWithTitle:@"Invalid Email!" message:@"Please Enter Valid Email id" delegate:self cancelButtonTitle:@"ok" otherButtonTitles:nil, nil];
+            [alert show];
+        }
+    }
+}
+
+#pragma mark -
+#pragma mark Send Request
+
+-(void)sendHTTPPost:(NSString* )json_string :(NSString *)m_pURLAddr{
+    
+	NSURL *l_pURL = [NSURL URLWithString:m_pURLAddr];
+    NSLog(@"Url===%@",l_pURL);
+    
+ 	NSMutableURLRequest *l_pRequest = [[NSMutableURLRequest alloc]initWithURL:l_pURL cachePolicy:NSURLRequestUseProtocolCachePolicy timeoutInterval:50.0];
+	NSLog(@"request===\%@",l_pRequest);
+	if(json_string != nil){
+		[l_pRequest setHTTPBody:[json_string dataUsingEncoding:NSUTF8StringEncoding]];
+		
+        [l_pRequest setHTTPMethod:@"POST"];
+        NSURLConnection *l_pConn = [[NSURLConnection alloc]initWithRequest:l_pRequest delegate:self startImmediately:NO];
+        [l_pConn scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+        [l_pConn start];
+    }
+}
+-(void)connection:(NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response{
+    //[mData release];
+	self.mData = [[NSMutableData alloc]init];
+	
+}
+-(void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data
+{
+	[self.mData appendData:data];
+}
+-(void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error{
+	UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Failed" message:@"No connection" delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil,nil];
+    NSLog(@"Error==%@",error);
+    // [activityIndicator stopAnimating];
+	[alert show];
+}
+-(void)connectionDidFinishLoading:(NSURLConnection *)connection{
+    self.successData = YES;
+	[self webServiceRequestCompleted];
+    
+}
+
+-(void)webServiceRequestCompleted{
+    
+    if(!self.successData){
+        return;
+    }
+    NSString *json_string = [[NSString alloc]initWithData:self.mData encoding:NSUTF8StringEncoding];
+    NSLog(@"json_String==%@",json_string);
+    
+    //{"Status":"0","Message":"all fields are mandatory"} 
+    
+    if ([json_string rangeOfString:@"\"Status\":\"0\""].location != NSNotFound) {
+        
+        NSDictionary *dict=[json_string  JSONValue];
+        [[[UIAlertView alloc]initWithTitle:@"Error" message:[dict objectForKey:@"Message"] delegate:self cancelButtonTitle:@"Ok" otherButtonTitles:nil, nil]show ];
+    }
+    else{
+        
+        //{"Status":"1","Message":"Password Change Successfully"} 
+        
+        
+        self.emailIDText.text=@"";
+        self.oldPassword.text=@"";
+        self.nwPasword.text=@"";
+        
+        NSDictionary *resultDict=[json_string JSONValue];
+        NSLog(@"Json Dict==%@",resultDict);
+        [[[UIAlertView alloc]initWithTitle:@"" message:[resultDict objectForKey:@"Message"] delegate:self cancelButtonTitle:@"Ok" otherButtonTitles:nil, nil]show ];
+        NSLog(@"Password changed  Successfully");
+    }
+    
+    
+}
+
+- (BOOL)shouldAutorotate{
+    return NO;
+}
+
+- (NSUInteger)supportedInterfaceOrientations{
+    return UIInterfaceOrientationMaskPortrait;
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
+{
+    // Return YES for supported orientations
+    return UIInterfaceOrientationIsPortrait(interfaceOrientation);
+    
+    
+}
+
+-(BOOL)textFieldShouldReturn:(UITextField *)textField
+{
+    [textField resignFirstResponder];
+    
+    return YES;
+}
+//Email Validation..
+- (BOOL) checkEmailValidation:(NSString *)email{
+    
+    BOOL stricterFilter = YES;
+    BOOL correct;
+    
+    NSString *stricterFilterString = @"[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,4}";
+    NSString *laxString = @".+@.+\\.[A-Za-z]{2}[A-Za-z]*";
+    NSString *emailRegex = stricterFilter ? stricterFilterString : laxString;
+    NSPredicate *emailTest = [NSPredicate predicateWithFormat:@"SELF MATCHES %@", emailRegex];
+    
+    if ([emailTest evaluateWithObject:email] == YES){
+        
+        correct=YES;
+    }
+    else{
+        
+        correct=NO;
+        
+    }
+    return correct;
+}
+
+
+@end

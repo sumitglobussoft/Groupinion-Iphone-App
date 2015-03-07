@@ -1,0 +1,174 @@
+//
+//  FriendsPickerViewController.m
+//  Groupinion
+//
+//  Created by Sumit Ghosh on 25/10/13.
+//  Copyright (c) 2013 Sumit Ghosh. All rights reserved.
+//
+
+#import "FriendsPickerViewController.h"
+#import "SendHttpRequest.h"
+#import "JSON.h"
+#import "FriendpickerCell.h"
+#import "UIImageView+WebCache.h"
+#import "MySingletonClass.h"
+@interface FriendsPickerViewController ()
+
+
+@end
+
+@implementation FriendsPickerViewController
+
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+{
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        // Custom initialization
+    }
+    return self;
+}
+
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    // Do any additional setup after loading the view from its nib.
+    
+    //===================================================================
+    //Add Banner Image(Ask Question)
+    UIImageView *bannerImage=[[UIImageView alloc]initWithFrame:CGRectMake(0, 0, 320, 50)];
+    bannerImage.image=[UIImage imageNamed:@"select_friends_btn.png.png"];
+    [self.view addSubview:bannerImage];
+    //==============
+    UIButton *cancelButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    cancelButton.frame = CGRectMake(10, 10, 57, 33);
+    [cancelButton setBackgroundImage:[UIImage imageNamed:@"cancel_new"] forState:UIControlStateNormal];
+    [cancelButton addTarget:self action:@selector(cancelButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:cancelButton];
+    //====================================
+    UIButton *doneButton = [UIButton buttonWithType:UIButtonTypeCustom];
+    doneButton.frame = CGRectMake(260, 10, 57, 33);
+    [doneButton setBackgroundImage:[UIImage imageNamed:@"done"] forState:UIControlStateNormal];
+    [doneButton addTarget:self action:@selector(doneButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:doneButton];
+    
+    [self fetchListofAllFriends:nil];
+    
+    self.frndsListTableView = [[UITableView alloc]initWithFrame:CGRectMake(0, 50, 320, 360) style:UITableViewStylePlain];
+    [self.view addSubview:self.frndsListTableView];
+    self.frndsListTableView.separatorStyle=UITableViewCellSeparatorStyleSingleLine ;
+    self.frndsListTableView.separatorColor = [UIColor lightGrayColor];
+    self.frndsListTableView.delegate=self;
+    self.frndsListTableView.dataSource=self;
+    
+    self.selectedFriendList = [[NSMutableArray alloc]init];
+}
+
+- (void)didReceiveMemoryWarning
+{
+    [super didReceiveMemoryWarning];
+    // Dispose of any resources that can be recreated.
+}
+-(void)fetchListofAllFriends:(id)sender{
+    // http://beta.groupinion.com/android/getfriends/?uid=1179
+    //http://beta.groupinion.com/android/getfriends/index.php?uid=1113&to=0
+    NSString *uid = [MySingletonClass sharedSingleton].groupinionUserID;
+    NSString *urlString = [NSString stringWithFormat:@"http://beta.groupinion.com/android/getfriends/index.php?uid=%@&to=0",uid];
+    urlString = [urlString stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    NSString *response = [SendHttpRequest sendRequest:urlString];
+    
+    if ([response isEqualToString:@"error"]) {
+        NSLog(@"Error try again");
+    }
+    else{
+        if ([response rangeOfString:@"\"Status\":\"0\""].location != NSNotFound) {
+            
+            NSLog(@"Error");
+        }
+        else{
+            self.frndsListArray = [[NSMutableArray alloc] init];
+            NSArray *jsonArray = [response JSONValue];
+            NSSortDescriptor *arySortDes = [[NSSortDescriptor alloc]initWithKey:@"Name" ascending:NO];
+                NSArray *descriptors = [NSArray arrayWithObject:arySortDes];
+            NSArray *sortedArray = [jsonArray sortedArrayUsingDescriptors:descriptors];
+            for (int i =0; i<sortedArray.count; i++) {
+                NSDictionary *dict = [sortedArray objectAtIndex:i];
+                [self.frndsListArray addObject:dict];
+            }
+            
+        }
+    }
+}
+#pragma mark -
+#pragma mark TableView Delegate and Datasource
+-(NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
+    return self.frndsListArray.count;
+}
+-(NSInteger) numberOfSectionsInTableView:(UITableView *)tableView{
+    return 1;
+}
+-(CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath{
+    return 60;
+}
+-(UITableViewCell *) tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
+    static NSString *cellIdentifier=@"cellIdentifier";
+    FriendpickerCell *cell=[tableView dequeueReusableCellWithIdentifier:cellIdentifier];
+    
+    if (!cell) {
+        cell=[[FriendpickerCell alloc]initWithStyle:UITableViewCellStyleDefault reuseIdentifier:cellIdentifier];
+        
+    }
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    NSDictionary *dict = [self.frndsListArray objectAtIndex:indexPath.row];
+    cell.namelable.text = [dict objectForKey:@"Name"];
+    NSString *pic = [NSString stringWithFormat:@"http://www.beta.groupinion.com/app3/modules/boonex/photos/data/avatar_75_75/0_avatar_75_75.jpg"];
+    [cell.proPicImageView setImageWithURL:[NSURL URLWithString:pic]];
+    if ([self.selectedFriendList containsObject:indexPath]) {
+        cell.accessoryType = UITableViewCellAccessoryCheckmark;
+    }
+    else{
+        cell.accessoryType = UITableViewCellAccessoryNone;
+    }
+    return cell;
+
+}
+-(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
+    
+    UITableViewCell *selectedCell = [tableView cellForRowAtIndexPath:indexPath];
+    if (selectedCell.accessoryType==UITableViewCellAccessoryCheckmark) {
+        selectedCell.accessoryType = UITableViewCellAccessoryNone;
+        [self.selectedFriendList removeObject:indexPath];
+    }
+    else{
+        selectedCell.accessoryType = UITableViewCellAccessoryCheckmark;
+        [self.selectedFriendList addObject:indexPath];
+    }
+    
+}
+
+#pragma mark -
+-(void)cancelButtonClicked:(id)sender{
+    if (self.delegate != nil && [self.delegate respondsToSelector:@selector(friendpickerControllerDidCancel:)]) {
+        [self.delegate friendpickerControllerDidCancel:self];
+    }
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+-(void)doneButtonClicked:(id)sender{
+    if (self.selectedFriendList.count<=0) {
+        [[[UIAlertView alloc] initWithTitle:@"" message:@"Please Select Friend" delegate:self cancelButtonTitle:@"Ok" otherButtonTitles:nil, nil] show];
+        return;
+    }
+    NSLog(@"Selected friends Count = %d",self.selectedFriendList.count);
+    NSMutableArray *selected = [[NSMutableArray alloc] init];
+    for (int i =0; i<self.selectedFriendList.count; i++) {
+        NSIndexPath *path = [self.selectedFriendList objectAtIndex:i];
+        NSDictionary *dict =[self.frndsListArray objectAtIndex:path.row];
+        [selected addObject:dict];
+    }
+   
+    if (self.delegate != nil && [self.delegate respondsToSelector:@selector(friendPickerController:didFinishPickingFriends:)]) {
+        [self.delegate friendPickerController:self didFinishPickingFriends:selected];
+    }
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+@end
